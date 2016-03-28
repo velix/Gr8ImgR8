@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Created by Velix on 27/3/2016.
@@ -90,6 +91,21 @@ public class Mapper implements MapWorkerInterface
 
         long counted = checkIns.parallelStream().count();
         System.out.println("Counted: " + counted);
+/*
+        for(String poiId:distinct_POIs){
+            counted = checkinsList.stream().parallel().filter(p -> p.getId().equals(poiId)).count();
+            System.out.println(poiId+" "+counted);
+        }*/
+
+        Map<String, List<CheckIn>> a = checkIns.stream().parallel().collect(Collectors.groupingBy(CheckIn::getPOI, Collectors.mapping(p -> p, Collectors.toList())));
+
+        for(String key:a.keySet()){
+            System.out.println("Key: "+key + " Value: " + a.get(key).size());
+        }
+
+        //double a = checkinsList.stream().parallel().map(p -> 1).reduce((sum, p) -> sum + p).get();
+
+        //System.out.print(a);
 
 //        int counted = checkIns.parallelStream()
 //                            .filter(p -> p.getLink() != null)
