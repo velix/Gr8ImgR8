@@ -7,7 +7,7 @@ import java.util.List;
  */
 public interface MapWorkerInterface extends Worker {
 
-    java.util.Map<Integer,Object> map(List<CheckIn> data);
+    java.util.Map<String, List<CheckIn>> map(List<CheckIn> data);
     void notifyMaster();
     void sendToReduce(java.util.Map<Integer,Object> topResults);
 }

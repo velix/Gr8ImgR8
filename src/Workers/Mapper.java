@@ -10,11 +10,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Created by Velix on 27/3/2016.
@@ -30,6 +28,8 @@ public class Mapper implements MapWorkerInterface
     private ServerSocket providerSocket = null;
     private Socket connection = null;
     private Coordinates coordinates = null;
+//    TODO: this comes from client
+    private static int K = 10;
 
     public void initialize()
     {
@@ -77,48 +77,35 @@ public class Mapper implements MapWorkerInterface
         }
     }
 
-    /*
-    Params:   key: POI
-              value: image
-
-    Returns:    key: POI
-                value: #images
-    */
-    public  java.util.Map<Integer,Object> map(List<CheckIn> checkIns)
+    public  java.util.Map<String, List<CheckIn>> map(List<CheckIn> checkIns)
     {
 
-        Map<Integer, Object> theMap = new HashMap<>();
+//        long counted = checkIns.parallelStream().count();
+//        System.out.println("Counted: " + counted);
 
-        long counted = checkIns.parallelStream().count();
-        System.out.println("Counted: " + counted);
-/*
-        for(String poiId:distinct_POIs){
-            counted = checkinsList.stream().parallel().filter(p -> p.getId().equals(poiId)).count();
-            System.out.println(poiId+" "+counted);
-        }*/
+        Map<String, List<CheckIn>> theMap = checkIns.stream().parallel()
+                .collect(Collectors.groupingBy(CheckIn::getPOI, Collectors.mapping(p -> p, Collectors.toList())));
 
-        Map<String, List<CheckIn>> a = checkIns.stream().parallel().collect(Collectors.groupingBy(CheckIn::getPOI, Collectors.mapping(p -> p, Collectors.toList())));
 
-        for(String key:a.keySet()){
-            System.out.println("Key: "+key + " Value: " + a.get(key).size());
-        }
+        List<Map.Entry<String, List<CheckIn>>> sortedRes =  theMap.entrySet().parallelStream()
+                .sorted((s1, s2) ->Integer.compare(s2.getValue().size(), s1.getValue().size()))
+                .collect(Collectors.toList());
 
-        //double a = checkinsList.stream().parallel().map(p -> 1).reduce((sum, p) -> sum + p).get();
+        theMap.clear();
 
-        //System.out.print(a);
+        List<Map.Entry<String, List<CheckIn>>> c = sortedRes.subList(0,K);
 
-//        int counted = checkIns.parallelStream()
-//                            .filter(p -> p.getLink() != null)
-//                            .map(p -> {
-//                                theMap.put(p.getPOI(), theMap.getOrDefault(p.getPOI, 0) + 1 );
+        theMap = c.parallelStream()
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 //
-//                                return true;
-//                            } );
+//        for(String key : theMap.keySet()){
+//            System.out.println("Key: "+key + " Value: " + theMap.get(key).size());
+//        }
 
-//        int flag = checkIns.parallelStream()
-//                        .map(p -> )
-
-
+        for(Map.Entry<String, List<CheckIn>> entry : c)
+        {
+            System.out.println("Key: "+ entry.getKey() + " Value: " + entry.getValue().size());
+        }
 
         return theMap;
     }
