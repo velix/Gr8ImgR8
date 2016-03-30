@@ -1,6 +1,6 @@
 package Workers;
 
-import Coordinates.Coordinates;
+import Request.Request;
 import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 
 import java.io.IOException;
@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Created by Velix on 27/3/2016.
@@ -24,16 +25,16 @@ public class Mapper implements MapWorkerInterface
     public static void main(String[] args)
     {
         Mapper mapper = new Mapper();
-        mapper.retrieveCheckins();
+        mapper.initialize();
     }
     private ServerSocket providerSocket = null;
     private Socket connection = null;
-    private Coordinates coordinates = null;
+    private Request request = null;
 
     public void initialize()
     {
         try {
-            providerSocket = new ServerSocket(4320);
+            providerSocket = new ServerSocket(1403);
 
             waitForTasksThread();
         }
@@ -54,11 +55,10 @@ public class Mapper implements MapWorkerInterface
                 ObjectInputStream in = new ObjectInputStream(connection.getInputStream());
 
                 try {
-                    this.coordinates = (Coordinates) in.readObject();
-//                    TODO: send thia to a method to extract and retrieve from db
-                }
-                catch(ClassNotFoundException e)
-                {
+                    this.request = (Request) in.readObject();
+                    System.out.println(this.request.toString());
+                    retrieveCheckins();
+                } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
             }
@@ -83,29 +83,39 @@ public class Mapper implements MapWorkerInterface
     Returns:    key: POI
                 value: #images
     */
-    public  java.util.Map<Integer,Object> map(List<CheckIn> checkIns)
+    public  java.util.Map<String, List<CheckIn>> map(List<CheckIn> checkIns)
     {
 
-        Map<Integer, Object> theMap = new HashMap<>();
+//        long counted = checkIns.parallelStream().count();
+//        System.out.println("Counted: " + counted);
 
-        long counted = checkIns.parallelStream().count();
-        System.out.println("Counted: " + counted);
+        Map<String, List<CheckIn>> theMap = checkIns.stream().parallel()
+                .collect(Collectors.groupingBy(CheckIn::getPOI, Collectors.mapping(p -> p, Collectors.toList())));
 
-//        int counted = checkIns.parallelStream()
-//                            .filter(p -> p.getLink() != null)
-//                            .map(p -> {
-//                                theMap.put(p.getPOI(), theMap.getOrDefault(p.getPOI, 0) + 1 );
+
+        List<Map.Entry<String, List<CheckIn>>> sortedRes =  theMap.entrySet().parallelStream()
+                .sorted((s1, s2) ->Integer.compare(s2.getValue().size(), s1.getValue().size()))
+                .collect(Collectors.toList());
+
+        theMap.clear();
+        System.out.println(sortedRes.size());
+        List<Map.Entry<String, List<CheckIn>>> c = sortedRes.subList(0,10);
+
+        theMap = c.parallelStream()
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 //
-//                                return true;
-//                            } );
+//        for(String key : theMap.keySet()){
+//            System.out.println("Key: "+key + " Value: " + theMap.get(key).size());
+//        }
 
-//        int flag = checkIns.parallelStream()
-//                        .map(p -> )
-
-
+        for(Map.Entry<String, List<CheckIn>> entry : c)
+        {
+            System.out.println("Key: "+ entry.getKey() + " Value: " + entry.getValue().size());
+        }
 
         return theMap;
     }
+
 
 
     public void retrieveCheckins() {
@@ -118,13 +128,22 @@ public class Mapper implements MapWorkerInterface
             MysqlDataSource dataSource = new MysqlDataSource();
             dataSource.setUser("omada41");
             dataSource.setPassword("omada41db");
-            dataSource.setServerName("195.251.252.98");
+            dataSource.setServerName("83.212.117.76");
 
 
             conn = dataSource.getConnection();
             stmt = conn.createStatement();
             String sql;
-            sql = "SELECT * FROM ds_systems_2016.checkins WHERE longitude>-74.015306 AND longitude<-74.010424 AND latitude>40.709436 AND latitude<40.712559";
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            String currentTime = sdf.format(request.getStartDate().getTime());
+            sql = "SELECT * FROM ds_systems_2016.checkins WHERE " +
+                    "latitude BETWEEN "+ Double.toString(request.getLatitudeMin())
+                    + " AND " + Double.toString(request.getLatitudeMax())
+                    + " AND longitude BETWEEN " + Double.toString(request.getLongtitudeMin())
+                    + " AND " + Double.toString(request.getLongtitudeMax())
+                    + " AND time BETWEEN '" + sdf.format(request.getStartDate().getTime())
+                    + "' AND '" + sdf.format(request.getEndDate().getTime()) + "'";
+            System.out.println(sql);
             ResultSet rs = stmt.executeQuery(sql);
 
             List<CheckIn> checkinsList = new ArrayList<>();
@@ -139,7 +158,7 @@ public class Mapper implements MapWorkerInterface
                 checkinsList.add(new CheckIn(poi, poi_name, link));
 //                distinct_POIs.add(id);
             }
-
+            System.out.println(checkinsList.size());
             this.map(checkinsList);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -149,7 +168,4 @@ public class Mapper implements MapWorkerInterface
 
     public void notifyMaster() {}
     public void sendToReduce(java.util.Map<Integer,Object> topResults){}
-
-
-
 }

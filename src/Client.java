@@ -26,7 +26,8 @@ public class Client extends Thread {
     public static void main(String[] args){
         List<String> addresses = Arrays.asList("127.0.0.1", "127.0.0.1", "127.0.0.1");
         List<Integer> ports = Arrays.asList(1401, 1402, 1403);
-        Request r = new Request(40.721854, 40.746398, -74.011651, -73.933891, new GregorianCalendar(2012,4,4,10,25), new GregorianCalendar(2013,2,11,21,45));
+        Request r = new Request(40.721854, -74.011651, 40.746398, -73.933891, new GregorianCalendar(2012,4,4,10,25,0), new GregorianCalendar(2013,2,11,21,45,0));
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
         List<Request> rl = splitRequest(r, 3);
         Client c1 = new Client(rl.get(0), addresses.get(0), ports.get(0));
@@ -62,31 +63,26 @@ public class Client extends Thread {
         String message = null;
         try {
             requestSocket = new Socket(InetAddress.getByName(address), port);
+
             out = new ObjectOutputStream(requestSocket.getOutputStream());
-            in = new ObjectInputStream(requestSocket.getInputStream());
 
-            out.writeUTF("Hi!");
+            out.writeObject(this.request);
             out.flush();
 
-            out.writeObject(request);
-            out.flush();
-
+            /*
             message = (String) in.readObject();
             System.out.println(message);
             if(message.equalsIgnoreCase("Hello!")){
                 System.out.println(port);
                 this.status = 1;
-            }
+            }*/
 
         } catch (UnknownHostException unknownHost) {
             System.err.println("You are trying to connect to an unknown host!");
         } catch (IOException ioException) {
             ioException.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
         } finally {
             try {
-                in.close();
                 out.close();
                 requestSocket.close();
             } catch (IOException ioException) {
@@ -143,7 +139,7 @@ public class Client extends Thread {
         List<Request> rl = new ArrayList<Request>();
 
         for (int i = 0; i < nOfSubspaces; i++) {
-            rl.add(new Request(a.get(i), r.getLatitudeMin(), a.get(i+1), r.getLatitudeMax(), r.getStartDate(), r.getEndDate()));
+            rl.add(new Request(r.getLatitudeMin(), a.get(i), r.getLatitudeMax(), a.get(i+1), r.getStartDate(), r.getEndDate()));
         }
 
         return rl;

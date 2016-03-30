@@ -7,28 +7,32 @@ import java.util.GregorianCalendar;
 public class Request implements Serializable {
 
     private static final long serialVersionUID = -2723363051271966964L;
-    private double latitudeMin, latitudeMax, longtitudeMin, longtitudeMax;
+    private double latitudeMin, longtitudeMin, latitudeMax, longtitudeMax;
     private GregorianCalendar startDate, endDate;
 
-    public Request(double latitudeMin, double latitudeMax, double longtitudeMin, double longtitudeMax, GregorianCalendar startDate, GregorianCalendar endDate) {
+    public Request(double latitudeMin, double longtitudeMin, double latitudeMax, double longtitudeMax, GregorianCalendar startDate, GregorianCalendar endDate) {
         this.latitudeMin = latitudeMin;
-        this.latitudeMax = latitudeMax;
         this.longtitudeMin = longtitudeMin;
+        this.latitudeMax = latitudeMax;
         this.longtitudeMax = longtitudeMax;
         this.startDate = startDate;
         this.endDate = endDate;
+    }
+
+    public static long getSerialVersionUID() {
+        return serialVersionUID;
     }
 
     public double getLatitudeMin() {
         return latitudeMin;
     }
 
-    public double getLatitudeMax() {
-        return latitudeMax;
-    }
-
     public double getLongtitudeMin() {
         return longtitudeMin;
+    }
+
+    public double getLatitudeMax() {
+        return latitudeMax;
     }
 
     public double getLongtitudeMax() {
@@ -47,12 +51,12 @@ public class Request implements Serializable {
         this.latitudeMin = latitudeMin;
     }
 
-    public void setLatitudeMax(double latitudeMax) {
-        this.latitudeMax = latitudeMax;
-    }
-
     public void setLongtitudeMin(double longtitudeMin) {
         this.longtitudeMin = longtitudeMin;
+    }
+
+    public void setLatitudeMax(double latitudeMax) {
+        this.latitudeMax = latitudeMax;
     }
 
     public void setLongtitudeMax(double longtitudeMax) {
@@ -71,8 +75,8 @@ public class Request implements Serializable {
     public String toString() {
         return "Request{" +
                 "latitudeMin=" + latitudeMin +
-                ", latitudeMax=" + latitudeMax +
                 ", longtitudeMin=" + longtitudeMin +
+                ", latitudeMax=" + latitudeMax +
                 ", longtitudeMax=" + longtitudeMax +
                 ", startDate=" + startDate +
                 ", endDate=" + endDate +
