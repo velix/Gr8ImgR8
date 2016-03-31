@@ -11,5 +11,5 @@ public interface MapWorkerInterfaceInterface extends WorkerInterface {
 
     Map<String, List<CheckIn>> map(List<CheckIn> data);
     void notifyMaster();
-    void sendToReduce(java.util.Map<Integer,Object> topResults);
+    void sendToReduce(java.util.Map<String, List<CheckIn>> topResults);
 }

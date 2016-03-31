@@ -1,10 +1,14 @@
 package Workers;
 
+import java.io.Serializable;
+
 /**
  * Created by Velix on 28/3/2016.
  */
-public class CheckIn
+public class CheckIn implements Serializable
 {
+    private static final long serialVersionUID = -2729973029811966964L;
+
     private String POI;
     private String POI_name;
     private String POI_category;

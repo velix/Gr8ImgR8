@@ -34,7 +34,7 @@ public class Reducer implements ReduceWorkerInterface {
     public void initialize()
     {
         try {
-            providerSocket = new ServerSocket(1403);
+            providerSocket = new ServerSocket(1405);
             theMaps = new ArrayList<>();
 
             waitForTasksThread();
@@ -57,10 +57,12 @@ public class Reducer implements ReduceWorkerInterface {
                 ObjectInputStream in = new ObjectInputStream(connection.getInputStream());
 
                 try {
+                    System.out.println("Received map from:" + connection.getInetAddress().getHostAddress());
+                    theMaps.add(((MapResults)in.readObject()).getMapResults());
+                    if(theMaps.size() >= 3){
+                        break;
+                    }
 
-                    theMaps.add((Map<String,List<CheckIn>>)in.readObject());
-
-                    System.out.println("Received map from:" + connection.getInetAddress());
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }

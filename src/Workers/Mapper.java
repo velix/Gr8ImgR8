@@ -4,6 +4,7 @@ import Request.Request;
 import com.mysql.jdbc.jdbc2.optional.MysqlDataSource;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.*;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -15,43 +16,33 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 
-public class Mapper implements MapWorkerInterfaceInterface
-{
+public class Mapper implements MapWorkerInterfaceInterface {
 
-    public static void main(String[] args)
-    {
+    public static void main(String[] args) {
         Mapper mapper = new Mapper();
         mapper.initialize();
-        List<CheckIn> checkIns = mapper.retrieveCheckins();
-
-        if(null != checkIns) {
-            Map<String, List<CheckIn>> theMap = mapper.map(checkIns);
-        }
-        else System.out.println("Dun goofed in retrieveCheckins()");
 
     }
+
     private ServerSocket providerSocket = null;
     private Socket connection = null;
     private Request request = null;
+    private List<CheckIn> checkIns = null;
 
 
-    public void initialize()
-    {
+    public void initialize() {
         try {
             providerSocket = new ServerSocket(1403);
-
+            checkIns = new ArrayList<CheckIn>();
             waitForTasksThread();
-        }
-        catch(IOException e)
-        {
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
 
     }
 
-    public void waitForTasksThread()
-    {
+    public void waitForTasksThread() {
         try {
             while (true) {
                 connection = this.providerSocket.accept();
@@ -63,16 +54,16 @@ public class Mapper implements MapWorkerInterfaceInterface
                     this.request = (Request) in.readObject();
 
                     System.out.println("Received request:\n\t" + this.request.toString());
+                    retrieveCheckins();
+                    sendToReduce(map(checkIns));
+
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }
             }
-        }
-        catch (IOException e)
-        {
+        } catch (IOException e) {
             e.printStackTrace();
-        }
-        finally {
+        } finally {
             try {
                 providerSocket.close();
             } catch (IOException ioException) {
@@ -81,8 +72,7 @@ public class Mapper implements MapWorkerInterfaceInterface
         }
     }
 
-    public  java.util.Map<String, List<CheckIn>> map(List<CheckIn> checkIns)
-    {
+    public java.util.Map<String, List<CheckIn>> map(List<CheckIn> checkIns) {
 
 //        long counted = checkIns.parallelStream().count();
 //        System.out.println("Counted: " + counted);
@@ -91,13 +81,13 @@ public class Mapper implements MapWorkerInterfaceInterface
                 .collect(Collectors.groupingBy(CheckIn::getPOI, Collectors.mapping(p -> p, Collectors.toList())));
 
 
-        List<Map.Entry<String, List<CheckIn>>> sortedRes =  theMap.entrySet().parallelStream()
-                .sorted((s1, s2) ->Integer.compare(s2.getValue().size(), s1.getValue().size()))
+        List<Map.Entry<String, List<CheckIn>>> sortedRes = theMap.entrySet().parallelStream()
+                .sorted((s1, s2) -> Integer.compare(s2.getValue().size(), s1.getValue().size()))
                 .collect(Collectors.toList());
 
         theMap.clear();
         System.out.println(sortedRes.size());
-        List<Map.Entry<String, List<CheckIn>>> c = sortedRes.subList(0,10);
+        List<Map.Entry<String, List<CheckIn>>> c = sortedRes.subList(0, 10);
 
         theMap = c.parallelStream()
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
@@ -106,17 +96,15 @@ public class Mapper implements MapWorkerInterfaceInterface
 //            System.out.println("Key: "+key + " Value: " + theMap.get(key).size());
 //        }
 
-        for(Map.Entry<String, List<CheckIn>> entry : c)
-        {
-            System.out.println("Key: "+ entry.getKey() + " Value: " + entry.getValue().size());
+        for (Map.Entry<String, List<CheckIn>> entry : c) {
+            System.out.println("Key: " + entry.getKey() + " Value: " + entry.getValue().size());
         }
 
         return theMap;
     }
 
 
-
-    public List<CheckIn> retrieveCheckins() {
+    public void retrieveCheckins() {
 
         //Database Connection and Retrieval
         Connection conn = null;
@@ -135,7 +123,7 @@ public class Mapper implements MapWorkerInterfaceInterface
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             String currentTime = sdf.format(request.getStartDate().getTime());
             sql = "SELECT * FROM ds_systems_2016.checkins WHERE " +
-                    "latitude BETWEEN "+ Double.toString(request.getLatitudeMin())
+                    "latitude BETWEEN " + Double.toString(request.getLatitudeMin())
                     + " AND " + Double.toString(request.getLatitudeMax())
                     + " AND longitude BETWEEN " + Double.toString(request.getLongtitudeMin())
                     + " AND " + Double.toString(request.getLongtitudeMax())
@@ -144,7 +132,6 @@ public class Mapper implements MapWorkerInterfaceInterface
             System.out.println(sql);
             ResultSet rs = stmt.executeQuery(sql);
 
-            List<CheckIn> checkinsList = new ArrayList<>();
 
             //STEP 5: Extract data from result set
             while (rs.next()) {
@@ -153,23 +140,46 @@ public class Mapper implements MapWorkerInterfaceInterface
                 String poi_name = rs.getString("POI_name");
                 String link = rs.getString("Photos");
 
-                checkinsList.add(new CheckIn(poi, poi_name, link));
+                checkIns.add(new CheckIn(poi, poi_name, link));
 //                distinct_POIs.add(id);
             }
-            System.out.println(checkinsList.size());
-
-
-
-            return checkinsList;
+            System.out.println(checkIns.size());
 
 
         } catch (SQLException e) {
             e.printStackTrace();
         }
-
-        return null;
     }
 
-    public void notifyMaster() {}
-    public void sendToReduce(Map<Integer,Object> topResults) {}
+    public void notifyMaster() {
+    }
+
+
+    public void sendToReduce(java.util.Map<String, List<CheckIn>> topResults) {
+
+        Socket requestSocket = null;
+        ObjectOutputStream out = null;
+        String message = null;
+        try {
+            requestSocket = new Socket("127.0.0.1", 1405);
+
+            out = new ObjectOutputStream(requestSocket.getOutputStream());
+
+            out.writeObject(new MapResults(topResults));
+            out.flush();
+            checkIns.clear();
+
+        } catch (UnknownHostException unknownHost) {
+            System.err.println("You are trying to connect to an unknown host!");
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+        } finally {
+            try {
+                out.close();
+                requestSocket.close();
+            } catch (IOException ioException) {
+                ioException.printStackTrace();
+            }
+        }
+    }
 }
