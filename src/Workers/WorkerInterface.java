@@ -1,6 +1,6 @@
 package Workers;
 
-interface Worker {
+interface WorkerInterface {
 
     void initialize();
     void waitForTasksThread();
