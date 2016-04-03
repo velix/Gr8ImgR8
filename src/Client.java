@@ -1,4 +1,6 @@
 import Request.Request;
+import Workers.MapResults;
+import Workers.POI_record;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -26,10 +28,15 @@ public class Client extends Thread {
     public static void main(String[] args){
         List<String> addresses = Arrays.asList("127.0.0.1", "127.0.0.1", "127.0.0.1");
         List<Integer> ports = Arrays.asList(1401, 1402, 1403);
-        Request r = new Request(40.721854, -74.011651, 40.746398, -73.933891,
-                new GregorianCalendar(2012,4,4,10,25,0), new GregorianCalendar(2013,2,11,21,45,0));
+        //Request r = new Request(40.721854, -74.011651, 40.746398, -73.933891,
+        //        new GregorianCalendar(2012,4,4,10,25,0), new GregorianCalendar(2013,2,11,21,45,0));
 
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        //Request r = new Request(40.724310, -74.008070, 40.925788, -73.475606,
+        //        new GregorianCalendar(2012,03,03,18,00,00), new GregorianCalendar(2013,01,16,02,36,00));
+        //TODO: Replace GregorialCalendar with a simple String. Strange behaviour concerning month. Java's problem.
+
+        Request r = new Request(40.755931, -74.004868, 40.793370, -73.935860,
+                new GregorianCalendar(2012,3,4-1,18,0,0), new GregorianCalendar(2013,2-1,16,2,36,0));
 
         List<Request> rl = splitRequest(r, 3);
         Client c1 = new Client(rl.get(0), addresses.get(0), ports.get(0));
@@ -39,6 +46,8 @@ public class Client extends Thread {
         c2.start();
         c3.start();
 
+        collectDataFromReducers();
+
         try {
             c1.join();
             c2.join();
@@ -46,15 +55,15 @@ public class Client extends Thread {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-
+        /*
         if (c1.status==1 && c2.status==1 && c3.status==1){
             System.out.println("Mappers are done");
-            ackToReducers("127.0.0.1", 1404);
+            //ackToReducers("127.0.0.1", 1404);
         }else{
             System.out.println(c1.status);
             System.out.println(c2.status);
             System.out.println(c3.status);
-        }
+        }*/
 
     }
 
@@ -147,7 +156,7 @@ public class Client extends Thread {
         return rl;
     }
 
-
+/*
     public static void ackToReducers(String reducerAddress, int reducerPort){
         Socket requestSocket = null;
         ObjectOutputStream out = null;
@@ -175,8 +184,41 @@ public class Client extends Thread {
             }
         }
     }
+*/
 
-    public void collectDataFromReducers(){
+    public static void collectDataFromReducers(){
+        ServerSocket providerSocket = null;
+        Socket connection = null;
+        String message = null;
+        try {
+                providerSocket = new ServerSocket(1400);
+                connection = providerSocket.accept();
+
+                ObjectInputStream in = new ObjectInputStream(connection.getInputStream());
+
+                try {
+                    System.out.println("Received Results from Reducer: " + connection.getInetAddress().getHostAddress());
+                    List<POI_record> finalList = ((List<POI_record>)in.readObject());
+
+                    for(POI_record rec : finalList )
+                    {
+                        System.out.println(finalList.indexOf(rec) + 1 + ":\t" + rec.toString());
+                    }
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+        finally {
+            try {
+                providerSocket.close();
+            } catch (IOException ioException) {
+                ioException.printStackTrace();
+            }
+        }
         return;
     }
 }

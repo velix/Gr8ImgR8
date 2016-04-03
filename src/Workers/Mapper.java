@@ -24,6 +24,8 @@ public class Mapper implements MapWorkerInterfaceInterface {
 
     }
 
+    private final int K = 10;
+
     private ServerSocket providerSocket = null;
     private Socket connection = null;
     private Request request = null;
@@ -74,8 +76,6 @@ public class Mapper implements MapWorkerInterfaceInterface {
 
     public java.util.Map<String, List<CheckIn>> map(List<CheckIn> checkIns) {
 
-//        long counted = checkIns.parallelStream().count();
-//        System.out.println("Counted: " + counted);
 
         Map<String, List<CheckIn>> theMap = checkIns.stream().parallel()
                 .collect(Collectors.groupingBy(CheckIn::getPOI, Collectors.mapping(p -> p, Collectors.toList())));
@@ -87,16 +87,19 @@ public class Mapper implements MapWorkerInterfaceInterface {
 
         theMap.clear();
         System.out.println(sortedRes.size());
-        List<Map.Entry<String, List<CheckIn>>> c = sortedRes.subList(0, 10);
+        List<Map.Entry<String, List<CheckIn>>> topSortedRes = null;
+        if(sortedRes.size() >= K){
+            topSortedRes = sortedRes.subList(0, K);
+        }else{
+            topSortedRes = sortedRes;
+        }
 
-        theMap = c.parallelStream()
+
+        theMap = topSortedRes.parallelStream()
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-//
-//        for(String key : theMap.keySet()){
-//            System.out.println("Key: "+key + " Value: " + theMap.get(key).size());
-//        }
 
-        for (Map.Entry<String, List<CheckIn>> entry : c) {
+
+        for (Map.Entry<String, List<CheckIn>> entry : topSortedRes) {
             System.out.println("Key: " + entry.getKey() + " Value: " + entry.getValue().size());
         }
 
@@ -121,7 +124,6 @@ public class Mapper implements MapWorkerInterfaceInterface {
             stmt = conn.createStatement();
             String sql;
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            String currentTime = sdf.format(request.getStartDate().getTime());
             sql = "SELECT * FROM ds_systems_2016.checkins WHERE " +
                     "latitude BETWEEN " + Double.toString(request.getLatitudeMin())
                     + " AND " + Double.toString(request.getLatitudeMax())
@@ -139,8 +141,10 @@ public class Mapper implements MapWorkerInterfaceInterface {
                 String poi = rs.getString("POI");
                 String poi_name = rs.getString("POI_name");
                 String link = rs.getString("Photos");
-
-                checkIns.add(new CheckIn(poi, poi_name, link));
+                String lat = rs.getString("latitude");
+                String lon = rs.getString("longitude");
+                
+                checkIns.add(new CheckIn(lat, lon, poi, poi_name, link));
 //                distinct_POIs.add(id);
             }
             System.out.println(checkIns.size());
