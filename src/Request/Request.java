@@ -1,7 +1,6 @@
 package Request;
 
 import java.io.Serializable;
-import java.util.Date;
 import java.util.GregorianCalendar;
 
 public class Request implements Serializable {
@@ -9,14 +8,24 @@ public class Request implements Serializable {
     private static final long serialVersionUID = -2723363051271966964L;
     private double latitudeMin, longtitudeMin, latitudeMax, longtitudeMax;
     private GregorianCalendar startDate, endDate;
+    private int k;
 
-    public Request(double latitudeMin, double longtitudeMin, double latitudeMax, double longtitudeMax, GregorianCalendar startDate, GregorianCalendar endDate) {
+    public Request(double latitudeMin, double longtitudeMin, double latitudeMax, double longtitudeMax, GregorianCalendar startDate, GregorianCalendar endDate, int k) {
         this.latitudeMin = latitudeMin;
         this.longtitudeMin = longtitudeMin;
         this.latitudeMax = latitudeMax;
         this.longtitudeMax = longtitudeMax;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.k = k;
+    }
+
+    public int getK() {
+        return k;
+    }
+
+    public void setK(int k) {
+        this.k = k;
     }
 
     public static long getSerialVersionUID() {

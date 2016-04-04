@@ -2,6 +2,6 @@ package Workers;
 
 interface WorkerInterface {
 
-    void initialize();
+    void initialize(int port);
     void waitForTasksThread();
 }

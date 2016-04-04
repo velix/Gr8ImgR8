@@ -6,10 +6,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.*;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,29 +16,49 @@ import java.util.stream.Collectors;
 public class Mapper implements MapWorkerInterfaceInterface {
 
     public static void main(String[] args) {
-        Mapper mapper = new Mapper();
-        mapper.initialize();
-
+        int port = -1;
+        String reducerIP = null;
+        int reducerPort = -1;
+        switch (args.length){
+            case 1:
+                port = Integer.valueOf(args[0]);
+                break;
+            case 3:
+                port = Integer.valueOf(args[0]);
+                reducerIP = args[1];
+                reducerPort = Integer.valueOf(args[2]);
+                break;
+            default:
+                port = 1503;
+                reducerIP = "127.0.0.1";
+                reducerPort = 1505;
+                System.out.println("Using default configuration.");
+        }
+        Mapper mapper = new Mapper(reducerIP, reducerPort);
+        mapper.initialize(port);
     }
 
-    private final int K = 10;
 
     private ServerSocket providerSocket = null;
     private Socket connection = null;
     private Request request = null;
     private List<CheckIn> checkIns = null;
+    private String reducerIP;
+    private int reducerPort;
 
+    public Mapper(String reducerIP, int reducerPort) {
+        this.reducerIP = reducerIP;
+        this.reducerPort = reducerPort;
+    }
 
-    public void initialize() {
+    public void initialize(int port) {
         try {
-            providerSocket = new ServerSocket(1403);
+            providerSocket = new ServerSocket(port);
             checkIns = new ArrayList<CheckIn>();
             waitForTasksThread();
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-
     }
 
     public void waitForTasksThread() {
@@ -55,7 +72,7 @@ public class Mapper implements MapWorkerInterfaceInterface {
 
                     this.request = (Request) in.readObject();
 
-                    System.out.println("Received request:\n\t" + this.request.toString());
+                    System.out.println("Received request from Client: "+ connection.getInetAddress().getHostAddress() );
                     retrieveCheckins();
                     sendToReduce(map(checkIns));
 
@@ -86,10 +103,10 @@ public class Mapper implements MapWorkerInterfaceInterface {
                 .collect(Collectors.toList());
 
         theMap.clear();
-        System.out.println(sortedRes.size());
+        System.out.println("There are " + sortedRes.size() + " distinct POIs");
         List<Map.Entry<String, List<CheckIn>>> topSortedRes = null;
-        if(sortedRes.size() >= K){
-            topSortedRes = sortedRes.subList(0, K);
+        if(sortedRes.size() >= request.getK()){
+            topSortedRes = sortedRes.subList(0, request.getK());
         }else{
             topSortedRes = sortedRes;
         }
@@ -112,30 +129,29 @@ public class Mapper implements MapWorkerInterfaceInterface {
         //Database Connection and Retrieval
         Connection conn = null;
         Statement stmt = null;
+
+
+        String dbURL = "jdbc:mysql://83.212.117.76:3306?user=omada41&password=omada41db";
+        String dbClass = "com.mysql.jdbc.Driver";
+
         try {
-
-            MysqlDataSource dataSource = new MysqlDataSource();
-            dataSource.setUser("omada41");
-            dataSource.setPassword("omada41db");
-            dataSource.setServerName("83.212.117.76");
-
-
-            conn = dataSource.getConnection();
-            stmt = conn.createStatement();
-            String sql;
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            sql = "SELECT * FROM ds_systems_2016.checkins WHERE " +
-                    "latitude BETWEEN " + Double.toString(request.getLatitudeMin())
+            String sql = "SELECT * FROM ds_systems_2016.checkins WHERE "
+                    + "latitude BETWEEN " + Double.toString(request.getLatitudeMin())
                     + " AND " + Double.toString(request.getLatitudeMax())
                     + " AND longitude BETWEEN " + Double.toString(request.getLongtitudeMin())
                     + " AND " + Double.toString(request.getLongtitudeMax())
                     + " AND time BETWEEN '" + sdf.format(request.getStartDate().getTime())
                     + "' AND '" + sdf.format(request.getEndDate().getTime()) + "'";
             System.out.println(sql);
+
+
+            Class.forName(dbClass);
+            conn = DriverManager.getConnection(dbURL);
+            stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql);
 
-
-            //STEP 5: Extract data from result set
+            //Extract data from result set
             while (rs.next()) {
                 //Retrieve by column name
                 String poi = rs.getString("POI");
@@ -143,16 +159,20 @@ public class Mapper implements MapWorkerInterfaceInterface {
                 String link = rs.getString("Photos");
                 String lat = rs.getString("latitude");
                 String lon = rs.getString("longitude");
-                
+
                 checkIns.add(new CheckIn(lat, lon, poi, poi_name, link));
 //                distinct_POIs.add(id);
             }
-            System.out.println(checkIns.size());
+            conn.close();
+            System.out.println("In total there are " + checkIns.size() + " checkins");
 
 
         } catch (SQLException e) {
             e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
+
     }
 
     public void notifyMaster() {
@@ -165,12 +185,14 @@ public class Mapper implements MapWorkerInterfaceInterface {
         ObjectOutputStream out = null;
         String message = null;
         try {
-            requestSocket = new Socket("127.0.0.1", 1405);
+            requestSocket = new Socket(this.reducerIP, this.reducerPort);
 
             out = new ObjectOutputStream(requestSocket.getOutputStream());
 
             out.writeObject(new MapResults(topResults));
             out.flush();
+
+            out.writeInt(this.request.getK());
             checkIns.clear();
 
         } catch (UnknownHostException unknownHost) {
