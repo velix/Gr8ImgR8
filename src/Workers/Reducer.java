@@ -125,7 +125,7 @@ public class Reducer implements ReduceWorkerInterface {
                 }
             }
         } catch (IOException e) {
-            System.err.println("Socket closed..");
+            System.out.println("Socket closed..");
         }
         finally {
             try {

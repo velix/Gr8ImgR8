@@ -28,7 +28,7 @@ public class Mapper implements MapWorkerInterfaceInterface {
                 reducerPort = Integer.valueOf(args[2]);
                 break;
             default:
-                localPort = 1501;
+                localPort = 1503;
                 reducerIP = "127.0.0.1";
                 reducerPort = 1505;
                 masterIP = "192.168.1.7";
@@ -140,13 +140,13 @@ public class Mapper implements MapWorkerInterfaceInterface {
         Statement stmt = null;
 
 
-        //String dbURL = "jdbc:mysql://83.212.117.76:3306?user=omada41&password=omada41db";
-        String dbURL = "jdbc:mysql://localhost:3306?user=root&password=4267";
+        String dbURL = "jdbc:mysql://83.212.117.76:3306?user=omada41&password=omada41db";
+        //String dbURL = "jdbc:mysql://localhost:3306?user=root&password=4267";
         String dbClass = "com.mysql.jdbc.Driver";
 
         try {
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            String sql = "SELECT * FROM nyc.checkins WHERE "
+            String sql = "SELECT * FROM ds_systems_2016_omada41.checkins WHERE "
                     + "latitude BETWEEN " + Double.toString(request.getLatitudeMin())
                     + " AND " + Double.toString(request.getLatitudeMax())
                     + " AND longitude BETWEEN " + Double.toString(request.getLongtitudeMin())
