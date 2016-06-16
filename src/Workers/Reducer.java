@@ -87,10 +87,8 @@ public class Reducer implements ReduceWorkerInterface {
     public void initialize() {
         try {
             providerSocket = new ServerSocket(localPortResults);
-            providerSocket.setReceiveBufferSize(3);
             theMaps = new ArrayList<>();
             waitForTasksThread();
-
         }
         catch(IOException e)
         {
@@ -102,13 +100,13 @@ public class Reducer implements ReduceWorkerInterface {
     public void waitForTasksThread() {
 
         try {
+            System.out.println("Waiting for tasks..");
             while (flag) {
                 connection = this.providerSocket.accept();
 
                 ObjectOutputStream out = new ObjectOutputStream((connection.getOutputStream()));
                 ObjectInputStream in = new ObjectInputStream(connection.getInputStream());
 
-                System.out.println("Waiting for tasks..");
                 try {
                     System.out.print("Received Results from Mapper: " + connection.getInetAddress().getHostAddress());
 
@@ -125,7 +123,7 @@ public class Reducer implements ReduceWorkerInterface {
                 }
             }
         } catch (IOException e) {
-            System.out.println("Socket closed..");
+            // Expected catch, caused by thread interuption.
         }
         finally {
             try {
@@ -219,7 +217,7 @@ public class Reducer implements ReduceWorkerInterface {
     public void sendResults()
     {
 
-        System.out.println("Sending Results to Client..");
+        System.out.println("Sending Results to Client..\n");
         Socket requestSocket = null;
         ObjectOutputStream out = null;
         String message = null;

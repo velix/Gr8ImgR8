@@ -31,6 +31,7 @@ public class Mapper implements MapWorkerInterfaceInterface {
                 localPort = 1503;
                 reducerIP = "127.0.0.1";
                 reducerPort = 1505;
+                //masterIP = "10.25.138.135";
                 masterIP = "192.168.1.7";
                 masterPort = 8080;
                 System.out.println("Using default configuration.");
@@ -146,7 +147,7 @@ public class Mapper implements MapWorkerInterfaceInterface {
 
         try {
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            String sql = "SELECT * FROM ds_systems_2016_omada41.checkins WHERE "
+            String sql = "SELECT POI, POI_name, Photos, latitude, longitude FROM ds_systems_2016_omada41.checkins WHERE "
                     + "latitude BETWEEN " + Double.toString(request.getLatitudeMin())
                     + " AND " + Double.toString(request.getLatitudeMax())
                     + " AND longitude BETWEEN " + Double.toString(request.getLongtitudeMin())
@@ -195,6 +196,7 @@ public class Mapper implements MapWorkerInterfaceInterface {
 
             out.writeBoolean(true);
             out.flush();
+            System.out.println("ACK sent to master");
 
         } catch (UnknownHostException unknownHost) {
             System.err.println("You are trying to connect to an unknown master!");

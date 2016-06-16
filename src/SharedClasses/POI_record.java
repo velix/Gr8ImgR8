@@ -75,6 +75,4 @@ public class POI_record implements Serializable {
 		return this.getPOI_name() + "\n" + "\tlat: " + this.getLatitude() + " lon: " + this.getLongitude() + "\tCheckIns: " + this.getCountOfChecIns() + "\n" +
 							"\tPHOTOS\n\t" + this.getPhotos().toString() + "\n";
 	}
-	
-	
 }
